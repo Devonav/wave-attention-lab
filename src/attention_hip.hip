@@ -2,10 +2,13 @@
 
 #include <hip/hip_runtime.h>
 
+#include <algorithm>
 #include <cmath>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace wave {
 namespace {
@@ -195,9 +198,83 @@ __global__ void fused_attention_kernel(
     }
 }
 
+__global__ void fused_cached_attention_kernel(
+    const float* query,
+    const float* key,
+    const float* value,
+    float* output,
+    int rows,
+    int sequence,
+    int dimension,
+    float scale,
+    bool causal) {
+    __shared__ float query_cache[kThreads];
+    __shared__ float reduction[kThreads];
+    __shared__ float running_max;
+    __shared__ float running_sum;
+    __shared__ float alpha;
+    __shared__ float beta;
+
+    const int row = blockIdx.x;
+    const int lane = threadIdx.x;
+    if (row >= rows) {
+        return;
+    }
+
+    const int query_index = row % sequence;
+    const int head_base = (row / sequence) * sequence * dimension;
+    const int query_base = row * dimension;
+    const int key_limit = causal ? query_index + 1 : sequence;
+    if (lane < dimension) {
+        query_cache[lane] = query[query_base + lane];
+    }
+    if (lane == 0) {
+        running_max = -INFINITY;
+        running_sum = 0.0f;
+    }
+    __syncthreads();
+
+    float accumulator = 0.0f;
+    for (int key_index = 0; key_index < key_limit; ++key_index) {
+        float partial = 0.0f;
+        for (int column = lane; column < dimension; column += blockDim.x) {
+            partial += query_cache[column] *
+                       key[head_base + key_index * dimension + column];
+        }
+        reduction[lane] = partial;
+        __syncthreads();
+        for (int stride = blockDim.x / 2; stride > 0; stride /= 2) {
+            if (lane < stride) {
+                reduction[lane] += reduction[lane + stride];
+            }
+            __syncthreads();
+        }
+
+        if (lane == 0) {
+            const float score = reduction[0] * scale;
+            const float next_max = fmaxf(running_max, score);
+            alpha = running_sum == 0.0f ? 0.0f : expf(running_max - next_max);
+            beta = expf(score - next_max);
+            running_sum = running_sum * alpha + beta;
+            running_max = next_max;
+        }
+        __syncthreads();
+
+        if (lane < dimension) {
+            accumulator = accumulator * alpha +
+                          beta * value[head_base + key_index * dimension + lane];
+        }
+        __syncthreads();
+    }
+
+    if (lane < dimension) {
+        output[query_base + lane] = accumulator / running_sum;
+    }
+}
+
 class DeviceBuffer {
 public:
-    explicit DeviceBuffer(std::size_t bytes) : bytes_(bytes) {
+    explicit DeviceBuffer(std::size_t bytes) {
         WAVE_HIP_CHECK(hipMalloc(&pointer_, bytes));
     }
 
@@ -215,7 +292,6 @@ public:
 
 private:
     void* pointer_ = nullptr;
-    std::size_t bytes_ = 0;
 };
 
 void launch_attention(
@@ -275,21 +351,39 @@ void launch_attention(
         if (dimension > kThreads) {
             throw std::invalid_argument("fused HIP kernel supports head dimensions up to 256");
         }
-        hipLaunchKernelGGL(
-            fused_attention_kernel,
-            dim3(rows),
-            dim3(kThreads),
-            0,
-            0,
-            query,
-            key,
-            value,
-            output,
-            rows,
-            sequence,
-            dimension,
-            scale,
-            causal);
+        if (algorithm == HipAlgorithm::fused) {
+            hipLaunchKernelGGL(
+                fused_attention_kernel,
+                dim3(rows),
+                dim3(kThreads),
+                0,
+                0,
+                query,
+                key,
+                value,
+                output,
+                rows,
+                sequence,
+                dimension,
+                scale,
+                causal);
+        } else {
+            hipLaunchKernelGGL(
+                fused_cached_attention_kernel,
+                dim3(rows),
+                dim3(kThreads),
+                0,
+                0,
+                query,
+                key,
+                value,
+                output,
+                rows,
+                sequence,
+                dimension,
+                scale,
+                causal);
+        }
     }
     WAVE_HIP_CHECK(hipGetLastError());
 }
@@ -303,6 +397,25 @@ double tflops(const AttentionShape& shape, double milliseconds) {
 double logical_bandwidth(const AttentionShape& shape, double milliseconds) {
     const double bytes = 4.0 * static_cast<double>(shape.qkv_elements()) * sizeof(float);
     return bytes / (milliseconds * 1.0e6);
+}
+
+void populate_timing_statistics(RunResult& result, std::vector<double> samples) {
+    result.average_ms = 0.0;
+    for (const double sample : samples) {
+        result.average_ms += sample;
+    }
+    result.average_ms /= static_cast<double>(samples.size());
+
+    std::sort(samples.begin(), samples.end());
+    const auto count = samples.size();
+    result.median_ms = count % 2 == 0
+        ? (samples[count / 2 - 1] + samples[count / 2]) / 2.0
+        : samples[count / 2];
+    const auto p95_index = static_cast<std::size_t>(
+        std::ceil(0.95 * static_cast<double>(count)) - 1.0);
+    result.p95_ms = samples[std::min(p95_index, count - 1)];
+    result.minimum_ms = samples.front();
+    result.maximum_ms = samples.back();
 }
 
 }  // namespace
@@ -361,8 +474,10 @@ RunResult benchmark_hip(
     hipEvent_t stop = nullptr;
     WAVE_HIP_CHECK(hipEventCreate(&start));
     WAVE_HIP_CHECK(hipEventCreate(&stop));
-    WAVE_HIP_CHECK(hipEventRecord(start));
+    std::vector<double> samples;
+    samples.reserve(static_cast<std::size_t>(iterations));
     for (int iteration = 0; iteration < iterations; ++iteration) {
+        WAVE_HIP_CHECK(hipEventRecord(start));
         launch_attention(
             shape,
             algorithm,
@@ -372,28 +487,34 @@ RunResult benchmark_hip(
             device_value.get(),
             device_output.get(),
             device_scores.get());
+        WAVE_HIP_CHECK(hipEventRecord(stop));
+        WAVE_HIP_CHECK(hipEventSynchronize(stop));
+        float sample_ms = 0.0f;
+        WAVE_HIP_CHECK(hipEventElapsedTime(&sample_ms, start, stop));
+        samples.push_back(sample_ms);
     }
-    WAVE_HIP_CHECK(hipEventRecord(stop));
-    WAVE_HIP_CHECK(hipEventSynchronize(stop));
-
-    float total_ms = 0.0f;
-    WAVE_HIP_CHECK(hipEventElapsedTime(&total_ms, start, stop));
     hipEventDestroy(start);
     hipEventDestroy(stop);
 
     RunResult result;
     result.output.resize(shape.qkv_elements());
     WAVE_HIP_CHECK(hipMemcpy(result.output.data(), device_output.get(), tensor_bytes, hipMemcpyDeviceToHost));
-    result.average_ms = total_ms / iterations;
-    result.tflops = tflops(shape, result.average_ms);
-    result.logical_bandwidth_gbs = logical_bandwidth(shape, result.average_ms);
+    populate_timing_statistics(result, std::move(samples));
+    result.tflops = tflops(shape, result.median_ms);
+    result.logical_bandwidth_gbs = logical_bandwidth(shape, result.median_ms);
     result.workspace_bytes = algorithm == HipAlgorithm::materialized ? score_bytes : 0;
 
     hipDeviceProp_t properties{};
     WAVE_HIP_CHECK(hipGetDeviceProperties(&properties, 0));
     result.device = properties.name;
+    result.architecture = properties.gcnArchName;
+    int runtime_version = 0;
+    int driver_version = 0;
+    WAVE_HIP_CHECK(hipRuntimeGetVersion(&runtime_version));
+    WAVE_HIP_CHECK(hipDriverGetVersion(&driver_version));
+    result.runtime_version = std::to_string(runtime_version);
+    result.driver_version = std::to_string(driver_version);
     return result;
 }
 
 }  // namespace wave
-

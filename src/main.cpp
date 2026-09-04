@@ -1,17 +1,24 @@
 #include "wave/attention.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <numeric>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
 namespace {
+
+#ifndef WAVE_GIT_SHA
+#define WAVE_GIT_SHA "unknown"
+#endif
 
 struct Options {
     wave::AttentionShape shape;
@@ -30,7 +37,7 @@ void print_help() {
         << "wave_bench - scaled dot-product attention kernel lab\n\n"
         << "Options:\n"
         << "  --backend cpu|hip        Execution backend (default: cpu)\n"
-        << "  --algorithm fused|materialized\n"
+        << "  --algorithm fused|fused-cached|materialized\n"
         << "  --batch N                Batch size (default: 1)\n"
         << "  --heads N                Attention heads (default: 8)\n"
         << "  --sequence N             Sequence length (default: 128)\n"
@@ -67,10 +74,13 @@ Options parse_options(int argc, char** argv) {
             const auto value = require_value(index, argc, argv);
             if (value == "fused") {
                 options.algorithm = wave::HipAlgorithm::fused;
+            } else if (value == "fused-cached") {
+                options.algorithm = wave::HipAlgorithm::fused_cached;
             } else if (value == "materialized") {
                 options.algorithm = wave::HipAlgorithm::materialized;
             } else {
-                throw std::invalid_argument("algorithm must be fused or materialized");
+                throw std::invalid_argument(
+                    "algorithm must be fused, fused-cached, or materialized");
             }
         } else if (argument == "--batch") {
             options.shape.batch = std::stoi(require_value(index, argc, argv));
@@ -104,7 +114,29 @@ Options parse_options(int argc, char** argv) {
 }
 
 const char* algorithm_name(wave::HipAlgorithm algorithm) {
-    return algorithm == wave::HipAlgorithm::fused ? "fused" : "materialized";
+    switch (algorithm) {
+        case wave::HipAlgorithm::materialized:
+            return "materialized";
+        case wave::HipAlgorithm::fused:
+            return "fused";
+        case wave::HipAlgorithm::fused_cached:
+            return "fused-cached";
+    }
+    throw std::invalid_argument("unknown HIP algorithm");
+}
+
+std::string utc_timestamp() {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t time = std::chrono::system_clock::to_time_t(now);
+    std::tm utc{};
+#ifdef _WIN32
+    gmtime_s(&utc, &time);
+#else
+    gmtime_r(&time, &utc);
+#endif
+    std::ostringstream stream;
+    stream << std::put_time(&utc, "%Y-%m-%dT%H:%M:%SZ");
+    return stream.str();
 }
 
 void append_csv(const Options& options, const wave::RunResult& result, double absolute_error, double relative_error) {
@@ -115,14 +147,20 @@ void append_csv(const Options& options, const wave::RunResult& result, double ab
         throw std::runtime_error("could not open CSV output: " + options.csv_path);
     }
     if (needs_header) {
-        stream << "device,backend,algorithm,batch,heads,sequence,dimension,causal,average_ms,tflops,"
-                  "logical_bandwidth_gbs,workspace_bytes,max_abs_error,max_rel_error\n";
+        stream << "timestamp_utc,git_sha,device,architecture,runtime_version,driver_version,"
+                  "backend,algorithm,dtype,batch,heads,sequence,dimension,causal,seed,warmup,iterations,"
+                  "average_ms,median_ms,p95_ms,min_ms,max_ms,tflops,logical_bandwidth_gbs,"
+                  "workspace_bytes,max_abs_error,max_rel_error\n";
     }
-    stream << std::quoted(result.device) << ',' << options.backend << ','
-           << (options.backend == "hip" ? algorithm_name(options.algorithm) : "reference") << ','
+    stream << utc_timestamp() << ',' << WAVE_GIT_SHA << ',' << std::quoted(result.device) << ','
+           << result.architecture << ',' << result.runtime_version << ',' << result.driver_version << ','
+           << options.backend << ','
+           << (options.backend == "hip" ? algorithm_name(options.algorithm) : "reference") << ",fp32,"
            << options.shape.batch << ',' << options.shape.heads << ',' << options.shape.sequence << ','
-           << options.shape.head_dimension << ',' << (options.causal ? 1 : 0) << ','
-           << std::setprecision(9) << result.average_ms << ',' << result.tflops << ','
+           << options.shape.head_dimension << ',' << (options.causal ? 1 : 0) << ',' << options.seed << ','
+           << options.warmup << ',' << options.iterations << ',' << std::setprecision(9)
+           << result.average_ms << ',' << result.median_ms << ',' << result.p95_ms << ','
+           << result.minimum_ms << ',' << result.maximum_ms << ',' << result.tflops << ','
            << result.logical_bandwidth_gbs << ',' << result.workspace_bytes << ','
            << absolute_error << ',' << relative_error << '\n';
 }
@@ -175,9 +213,17 @@ int main(int argc, char** argv) {
                   << ", " << options.shape.sequence << ", " << options.shape.head_dimension << "]\n"
                   << "causal:               " << (options.causal ? "yes" : "no") << '\n'
                   << "average_ms:           " << result.average_ms << '\n'
+                  << "median_ms:            " << result.median_ms << '\n'
+                  << "p95_ms:               " << result.p95_ms << '\n'
+                  << "min_ms:               " << result.minimum_ms << '\n'
+                  << "max_ms:               " << result.maximum_ms << '\n'
                   << "estimated_tflops:     " << result.tflops << '\n'
                   << "logical_bandwidth:    " << result.logical_bandwidth_gbs << " GB/s\n"
                   << "workspace_bytes:      " << result.workspace_bytes << '\n'
+                  << "architecture:         " << result.architecture << '\n'
+                  << "runtime_version:      " << result.runtime_version << '\n'
+                  << "driver_version:       " << result.driver_version << '\n'
+                  << "git_sha:              " << WAVE_GIT_SHA << '\n'
                   << "output_checksum:      " << checksum << '\n';
         if (options.verify && options.backend == "hip") {
             std::cout << "max_absolute_error:   " << absolute_error << '\n'

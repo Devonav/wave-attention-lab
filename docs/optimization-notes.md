@@ -29,18 +29,22 @@ Every key iteration rereads Q. Cache the query row once, then measure the effect
 on cache misses, memory traffic, occupancy, and latency. LDS use can reduce
 occupancy, so the counter evidence matters.
 
+Status: implemented as the separate `fused-cached` variant; target-GPU
+measurement is pending.
+
 ## Optimization roadmap
 
-| Stage | Change | Risk | Evidence required |
+| Stage | Change | Status | Evidence required |
 | --- | --- | --- | --- |
-| 1 | Cache Q and tile K/V through LDS | More LDS per block | Latency, occupancy, cache counters |
-| 2 | Wave-level reductions | Wave-size assumptions | Correctness on wave32/wave64, barrier count |
-| 3 | Vectorized aligned loads | Tail and alignment bugs | Dimension sweep, sanitizer/static checks |
-| 4 | FP16/BF16 inputs with FP32 accumulation | Numerical drift | Error distributions, throughput |
-| 5 | MFMA-based score tiles | Layout complexity | ISA inspection, utilization, speedup |
-| 6 | Double-buffered tiles | Register/LDS pressure | Occupancy and stall analysis |
-| 7 | Shape-aware autotuning | Search and cache complexity | Held-out shape results |
-| 8 | PyTorch custom operator | Dispatch/build surface | Framework parity and end-to-end latency |
+| 1 | Cache Q in LDS | Implemented, unmeasured | Latency, occupancy, cache counters |
+| 2 | Tile K/V through LDS | Planned | Latency, occupancy, cache counters |
+| 3 | Wave-level reductions | Planned | Correctness on wave32/wave64, barrier count |
+| 4 | Vectorized aligned loads | Planned | Dimension sweep, sanitizer/static checks |
+| 5 | FP16/BF16 with FP32 accumulation | Planned | Error distributions, throughput |
+| 6 | RDNA WMMA score tiles | Planned | ISA inspection, utilization, speedup |
+| 7 | Double-buffered tiles | Planned | Occupancy and stall analysis |
+| 8 | Shape-aware autotuning | Planned | Held-out shape results |
+| 9 | PyTorch custom operator | Planned | Framework parity and end-to-end latency |
 
 ## Experiment rules
 
@@ -66,4 +70,3 @@ Latency before / after:
 Profiler evidence:
 Conclusion and next experiment:
 ```
-

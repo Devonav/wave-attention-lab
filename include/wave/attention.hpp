@@ -27,15 +27,23 @@ struct AttentionInputs {
 enum class HipAlgorithm {
     materialized,
     fused,
+    fused_cached,
 };
 
 struct RunResult {
     std::vector<float> output;
     double average_ms = 0.0;
+    double median_ms = 0.0;
+    double p95_ms = 0.0;
+    double minimum_ms = 0.0;
+    double maximum_ms = 0.0;
     double tflops = 0.0;
     double logical_bandwidth_gbs = 0.0;
     std::size_t workspace_bytes = 0;
     std::string device;
+    std::string architecture;
+    std::string runtime_version;
+    std::string driver_version;
 };
 
 AttentionInputs make_inputs(const AttentionShape& shape, std::uint64_t seed);
@@ -68,4 +76,3 @@ double max_absolute_error(const std::vector<float>& expected, const std::vector<
 double max_relative_error(const std::vector<float>& expected, const std::vector<float>& actual);
 
 }  // namespace wave
-

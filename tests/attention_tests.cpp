@@ -45,6 +45,32 @@ void test_deterministic_inputs() {
     }
 }
 
+void test_heads_do_not_mix() {
+    const wave::AttentionShape shape{1, 2, 2, 1};
+    const std::vector<float> query(4, 0.0f);
+    const std::vector<float> key(4, 0.0f);
+    const std::vector<float> value{1.0f, 3.0f, 10.0f, 14.0f};
+    const auto output = wave::attention_cpu(shape, query, key, value, false);
+    expect_near(output[0], 2.0f, 1.0e-6f, "head zero row zero");
+    expect_near(output[1], 2.0f, 1.0e-6f, "head zero row one");
+    expect_near(output[2], 12.0f, 1.0e-6f, "head one row zero");
+    expect_near(output[3], 12.0f, 1.0e-6f, "head one row one");
+}
+
+void test_large_scores_remain_finite() {
+    const wave::AttentionShape shape{1, 1, 2, 1};
+    const std::vector<float> query{1000.0f, 1000.0f};
+    const std::vector<float> key{1000.0f, 999.0f};
+    const std::vector<float> value{7.0f, -3.0f};
+    const auto output = wave::attention_cpu(shape, query, key, value, false);
+    for (const float element : output) {
+        if (!std::isfinite(element)) {
+            throw std::runtime_error("large finite scores produced a non-finite result");
+        }
+        expect_near(element, 7.0f, 1.0e-5f, "stable softmax output");
+    }
+}
+
 void test_invalid_shape() {
     try {
         wave::AttentionShape{1, 1, 0, 64}.validate();
@@ -61,6 +87,8 @@ int main() {
         test_uniform_attention();
         test_causal_attention();
         test_deterministic_inputs();
+        test_heads_do_not_mix();
+        test_large_scores_remain_finite();
         test_invalid_shape();
         std::cout << "all CPU correctness tests passed\n";
         return 0;

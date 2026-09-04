@@ -1,5 +1,7 @@
 # Wave Attention Lab
 
+[![CI](https://github.com/Devonav/wave-attention-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/Devonav/wave-attention-lab/actions/workflows/ci.yml)
+
 A small, inspectable HIP/C++ laboratory for optimizing scaled dot-product
 attention on AMD GPUs. The first target is an AMD Radeon RX 9070 XT (RDNA 4,
 `gfx1201`).
@@ -13,11 +15,16 @@ flowchart LR
     Q[Q, K, V tensors] --> R[CPU reference]
     Q --> M[Materialized HIP path]
     Q --> F[Fused online-softmax HIP path]
+    Q --> C[Fused plus cached-Q HIP path]
+    Q --> P[PyTorch SDPA baseline]
     R --> V[Correctness check]
     M --> V
     F --> V
+    C --> V
     M --> B[CSV measurements]
     F --> B
+    C --> B
+    P --> B
     B --> S[Markdown summary]
 ```
 
@@ -28,15 +35,22 @@ flowchart LR
 | CPU reference | n/a | `O(N)` | Stable correctness oracle and portable CI |
 | Materialized HIP | 3 | `O(B * H * N^2)` | Clear performance baseline |
 | Fused HIP | 1 | `O(1)` | Streaming, numerically stable online softmax |
+| Fused-cached HIP | 1 | `O(1)` | Fused path with one LDS load of each Q row |
+| PyTorch SDPA | framework selected | framework managed | Production-oriented comparison |
 
-Both GPU paths support causal and non-causal attention. The benchmark reports
-kernel time, estimated TFLOP/s, logical bandwidth, workspace bytes, an output
-checksum, and optional error against the CPU oracle. Inputs are deterministic.
+All custom GPU paths support causal and non-causal attention. The benchmark
+reports median and p95 kernel time, estimated TFLOP/s, logical bandwidth,
+workspace bytes, environment metadata, an output checksum, and optional error
+against the CPU oracle. Inputs are deterministic.
 
 The current kernels use FP32 and prioritize clarity and measurement. The next
 optimization steps are intentionally recorded in
 [docs/optimization-notes.md](docs/optimization-notes.md) rather than presented
 as completed work.
+
+Every push runs portable correctness tests and a compile-only `gfx1201` HIP job
+inside AMD's ROCm development container. Real GPU execution remains a separate
+self-hosted workflow because hosted runners do not expose the target card.
 
 ## Quick start: portable CPU build
 
@@ -68,7 +82,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 
 ./build/wave_bench \
-  --backend hip --algorithm fused \
+  --backend hip --algorithm fused-cached \
   --batch 1 --heads 8 --sequence 256 --dimension 64 \
   --warmup 10 --iterations 100 --verify
 ```
@@ -77,8 +91,14 @@ Run a repeatable sweep and summarize it:
 
 ```bash
 python3 scripts/run_sweep.py --executable ./build/wave_bench --output out/rx9070xt.csv
+python3 scripts/benchmark_pytorch.py --output out/rx9070xt.csv --append
 python3 scripts/summarize.py out/rx9070xt.csv --output out/RESULTS.md
 ```
+
+No RX 9070 XT performance numbers are checked in yet. Results will be published
+only after the HIP build runs on the target card with correctness enabled. The
+required methodology is defined in
+[docs/benchmarking.md](docs/benchmarking.md).
 
 ## Profiling
 
@@ -86,7 +106,7 @@ Start with a runtime trace to separate dispatch, copies, and kernels:
 
 ```bash
 rocprofv3 --runtime-trace --output-format csv -- \
-  ./build/wave_bench --backend hip --algorithm fused \
+  ./build/wave_bench --backend hip --algorithm fused-cached \
   --heads 8 --sequence 1024 --dimension 64 --warmup 2 --iterations 10
 ```
 
@@ -106,13 +126,26 @@ them together. The profiling plan and hypotheses are in
 ```text
 include/wave/attention.hpp   Public API and benchmark result schema
 src/attention_cpu.cpp        Stable CPU reference and comparison helpers
-src/attention_hip.hip        Materialized and fused HIP implementations
+src/attention_hip.hip        Materialized, fused, and cached-fused HIP paths
 src/main.cpp                 Reproducible benchmark CLI and CSV writer
 tests/attention_tests.cpp    CPU semantic tests
 scripts/run_sweep.py         Standard experiment matrix
+scripts/benchmark_pytorch.py PyTorch SDPA comparison harness
 scripts/summarize.py         CSV-to-Markdown comparison report
 docs/                        Setup, design, and optimization record
+results/                     Publication gate and reviewed measurements
 ```
+
+## Visual guides
+
+- [Architecture diagrams](docs/architecture.md): layers, kernel data flow,
+  online-softmax state, benchmark lifecycle, and the planned LLM integration.
+- [Benchmarking protocol](docs/benchmarking.md): comparison matrix, required
+  metadata, standard runs, and profiler evidence.
+- [Milestone roadmap](docs/roadmap.md): concrete exit criteria from measurements
+  through PyTorch, LLM inference, post-training, and guarded agentic tuning.
+- [Kernel design](docs/design.md): mathematical definition and timing contract.
+- [Optimization notes](docs/optimization-notes.md): hypotheses and experiment log.
 
 ## Honest scope
 
@@ -125,4 +158,3 @@ work that would turn the educational fused kernel into a competitive operator.
 ## License
 
 MIT
-

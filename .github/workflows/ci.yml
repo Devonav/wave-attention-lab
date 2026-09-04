@@ -20,6 +20,29 @@ jobs:
         run: ctest --test-dir build --output-on-failure
       - name: Python tests
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Python syntax and help smoke tests
+        run: |
+          python3 -m py_compile scripts/*.py tests/test_*.py
+          python3 scripts/benchmark_pytorch.py --help
       - name: CLI smoke test
         run: ./build/wave_bench --backend cpu --heads 2 --sequence 16 --dimension 8 --iterations 1
 
+  hip-compile:
+    runs-on: ubuntu-24.04
+    container: rocm/dev-ubuntu-24.04:7.2.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show HIP compiler
+        run: /opt/rocm/bin/hipcc --version
+      - name: Compile all HIP kernels for RDNA4
+        run: >-
+          /opt/rocm/bin/hipcc
+          -std=c++17
+          -O2
+          -DWAVE_HAS_HIP=1
+          --offload-arch=gfx1201
+          -Iinclude
+          src/attention_cpu.cpp
+          src/attention_hip.hip
+          src/main.cpp
+          -o wave_bench

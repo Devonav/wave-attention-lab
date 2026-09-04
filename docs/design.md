@@ -49,6 +49,13 @@ stability without storing the score matrix. The current implementation uses a
 simple block reduction and is readable by design; it is a baseline for the
 optimizations in `optimization-notes.md`.
 
+## Query-cached fused path
+
+`fused-cached` preserves the same online-softmax algorithm and block reduction,
+but copies the query row to LDS once before the key loop. The original `fused`
+path remains available as the control. This isolates one question for the first
+profiler experiment: whether fewer global Q loads outweigh the extra LDS use.
+
 ## Measurement contract
 
 GPU timing uses HIP events around kernel dispatches only. Allocation and host to
@@ -59,4 +66,3 @@ Reported TFLOP/s uses `4 * B * H * N^2 * d` operations, counting a multiply-add
 as two operations for both `QK^T` and `PV`. Logical bandwidth counts one read of
 Q, K, and V plus one write of O; it is a comparison metric, not measured DRAM
 traffic. Profiler counters are required for claims about physical bandwidth.
-

@@ -9,13 +9,18 @@ from collections import defaultdict
 from pathlib import Path
 
 
-KEY_FIELDS = ("device", "batch", "heads", "sequence", "dimension", "causal")
+KEY_FIELDS = ("device", "dtype", "batch", "heads", "sequence", "dimension", "causal")
 
 
 def load_rows(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as stream:
         rows = list(csv.DictReader(stream))
-    required = set(KEY_FIELDS) | {"algorithm", "average_ms", "workspace_bytes", "max_abs_error"}
+    required = set(KEY_FIELDS) | {
+        "algorithm",
+        "average_ms",
+        "workspace_bytes",
+        "max_abs_error",
+    }
     if not rows:
         raise ValueError("benchmark CSV is empty")
     missing = required - set(rows[0])
@@ -33,30 +38,44 @@ def summarize(rows: list[dict[str, str]]) -> str:
     lines = [
         "# Wave Attention Benchmark Results",
         "",
-        "| Device | B | H | N | D | Causal | Materialized ms | Fused ms | Speedup | Workspace saved | Max abs error |",
-        "| --- | ---: | ---: | ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Device | Type | B | H | N | D | Causal | Materialized | Fused | Cached | PyTorch SDPA | Cached vs baseline | Cached vs SDPA | Cached p95 | Workspace saved | Max abs error |",
+        "| --- | --- | ---: | ---: | ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     comparisons = 0
     for key in sorted(groups):
         variants = groups[key]
-        if "materialized" not in variants or "fused" not in variants:
+        required_variants = {"materialized", "fused", "fused-cached"}
+        if not required_variants.issubset(variants):
             continue
         materialized = variants["materialized"]
         fused = variants["fused"]
-        materialized_ms = float(materialized["average_ms"])
-        fused_ms = float(fused["average_ms"])
-        speedup = materialized_ms / fused_ms if fused_ms else 0.0
-        workspace_saved = int(materialized["workspace_bytes"]) - int(fused["workspace_bytes"])
-        error = max(float(materialized["max_abs_error"]), float(fused["max_abs_error"]))
-        device, batch, heads, sequence, dimension, causal = key
+        cached = variants["fused-cached"]
+        materialized_ms = float(materialized.get("median_ms") or materialized["average_ms"])
+        fused_ms = float(fused.get("median_ms") or fused["average_ms"])
+        cached_ms = float(cached.get("median_ms") or cached["average_ms"])
+        cached_p95 = float(cached.get("p95_ms") or cached["average_ms"])
+        speedup = materialized_ms / cached_ms if cached_ms else 0.0
+        sdpa = variants.get("sdpa-auto")
+        sdpa_ms = float(sdpa.get("median_ms") or sdpa["average_ms"]) if sdpa else None
+        sdpa_speedup = sdpa_ms / cached_ms if sdpa_ms is not None and cached_ms else None
+        workspace_saved = int(materialized["workspace_bytes"]) - int(cached["workspace_bytes"])
+        error = max(
+            float(materialized["max_abs_error"]),
+            float(fused["max_abs_error"]),
+            float(cached["max_abs_error"]),
+        )
+        device, dtype, batch, heads, sequence, dimension, causal = key
         lines.append(
-            f"| {device} | {batch} | {heads} | {sequence} | {dimension} | "
-            f"{'yes' if causal == '1' else 'no'} | {materialized_ms:.4f} | {fused_ms:.4f} | "
-            f"{speedup:.2f}x | {workspace_saved:,} B | {error:.3g} |"
+            f"| {device} | {dtype} | {batch} | {heads} | {sequence} | {dimension} | "
+            f"{'yes' if causal == '1' else 'no'} | {materialized_ms:.4f} ms | "
+            f"{fused_ms:.4f} ms | {cached_ms:.4f} ms | "
+            f"{f'{sdpa_ms:.4f} ms' if sdpa_ms is not None else '-'} | {speedup:.2f}x | "
+            f"{f'{sdpa_speedup:.2f}x' if sdpa_speedup is not None else '-'} | "
+            f"{cached_p95:.4f} ms | {workspace_saved:,} B | {error:.3g} |"
         )
         comparisons += 1
     if comparisons == 0:
-        raise ValueError("no shapes contain both materialized and fused results")
+        raise ValueError("no shapes contain materialized, fused, and fused-cached results")
     lines.extend([
         "",
         "Generated from raw `wave_bench` CSV rows. Timing covers GPU kernels only.",
@@ -83,4 +102,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

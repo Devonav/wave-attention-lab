@@ -6,6 +6,8 @@
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace wave {
 namespace {
@@ -37,6 +39,28 @@ double logical_bandwidth(const AttentionShape& shape, double milliseconds) {
     }
     const double bytes = 4.0 * static_cast<double>(shape.qkv_elements()) * sizeof(float);
     return bytes / (milliseconds * 1.0e6);
+}
+
+void populate_timing_statistics(RunResult& result, std::vector<double> samples) {
+    if (samples.empty()) {
+        throw std::invalid_argument("timing samples must not be empty");
+    }
+    result.average_ms = 0.0;
+    for (const double sample : samples) {
+        result.average_ms += sample;
+    }
+    result.average_ms /= static_cast<double>(samples.size());
+
+    std::sort(samples.begin(), samples.end());
+    const auto count = samples.size();
+    result.median_ms = count % 2 == 0
+        ? (samples[count / 2 - 1] + samples[count / 2]) / 2.0
+        : samples[count / 2];
+    const auto p95_index = static_cast<std::size_t>(
+        std::ceil(0.95 * static_cast<double>(count)) - 1.0);
+    result.p95_ms = samples[std::min(p95_index, count - 1)];
+    result.minimum_ms = samples.front();
+    result.maximum_ms = samples.back();
 }
 
 }  // namespace
@@ -135,22 +159,26 @@ RunResult benchmark_cpu(
         output = attention_cpu(shape, inputs.query, inputs.key, inputs.value, causal);
     }
 
-    const auto start = std::chrono::steady_clock::now();
+    std::vector<double> samples;
+    samples.reserve(static_cast<std::size_t>(iterations));
     for (int iteration = 0; iteration < iterations; ++iteration) {
+        const auto start = std::chrono::steady_clock::now();
         output = attention_cpu(shape, inputs.query, inputs.key, inputs.value, causal);
+        const auto stop = std::chrono::steady_clock::now();
+        samples.push_back(std::chrono::duration<double, std::milli>(stop - start).count());
     }
-    const auto stop = std::chrono::steady_clock::now();
-    const double elapsed_ms = std::chrono::duration<double, std::milli>(stop - start).count();
-    const double average_ms = elapsed_ms / iterations;
 
-    return {
-        std::move(output),
-        average_ms,
-        estimated_tflops(shape, average_ms),
-        logical_bandwidth(shape, average_ms),
-        static_cast<std::size_t>(shape.sequence) * sizeof(float),
-        "CPU reference",
-    };
+    RunResult result;
+    result.output = std::move(output);
+    populate_timing_statistics(result, std::move(samples));
+    result.tflops = estimated_tflops(shape, result.median_ms);
+    result.logical_bandwidth_gbs = logical_bandwidth(shape, result.median_ms);
+    result.workspace_bytes = static_cast<std::size_t>(shape.sequence) * sizeof(float);
+    result.device = "CPU reference";
+    result.architecture = "host";
+    result.runtime_version = "C++17";
+    result.driver_version = "n/a";
+    return result;
 }
 
 double max_absolute_error(const std::vector<float>& expected, const std::vector<float>& actual) {

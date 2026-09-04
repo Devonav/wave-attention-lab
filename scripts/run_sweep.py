@@ -26,6 +26,7 @@ def main() -> int:
     parser.add_argument("--warmup", type=int, default=10)
     parser.add_argument("--causal", action="store_true")
     parser.add_argument("--verify-through", type=int, default=256)
+    parser.add_argument("--append", action="store_true")
     args = parser.parse_args()
 
     executable = args.executable.resolve()
@@ -33,11 +34,13 @@ def main() -> int:
         parser.error(f"benchmark executable does not exist: {executable}")
     if args.heads <= 0 or args.iterations <= 0 or args.warmup < 0:
         parser.error("heads and iterations must be positive; warmup must be non-negative")
+    if args.output.exists() and not args.append:
+        parser.error(f"output already exists: {args.output} (use --append to add rows)")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     for sequence in args.sequences:
         for dimension in args.dimensions:
-            for algorithm in ("materialized", "fused"):
+            for algorithm in ("materialized", "fused", "fused-cached"):
                 command = [
                     str(executable),
                     "--backend", "hip",
@@ -60,4 +63,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

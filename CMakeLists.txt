@@ -31,6 +31,18 @@ endif()
 add_executable(wave_bench src/main.cpp)
 target_link_libraries(wave_bench PRIVATE wave::attention)
 
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE WAVE_GIT_SHA
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT WAVE_GIT_SHA)
+    set(WAVE_GIT_SHA unknown)
+endif()
+target_compile_definitions(wave_bench PRIVATE WAVE_GIT_SHA="${WAVE_GIT_SHA}")
+
 include(CTest)
 if(BUILD_TESTING)
     add_executable(wave_tests tests/attention_tests.cpp)
