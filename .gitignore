@@ -1,0 +1,11 @@
+/build/
+/out/
+/.cache/
+__pycache__/
+*.py[cod]
+*.csv
+*.db
+*.pftrace
+.vs/
+.vscode/
+

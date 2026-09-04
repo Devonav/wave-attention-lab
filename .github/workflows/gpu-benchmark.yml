@@ -1,0 +1,45 @@
+name: RX 9070 XT benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      causal:
+        description: Run causal attention
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: [self-hosted, linux, x64, rocm, gfx1201]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure HIP build
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DWAVE_ENABLE_HIP=ON
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_HIP_ARCHITECTURES=gfx1201
+          -DCMAKE_PREFIX_PATH=/opt/rocm
+      - name: Build and test
+        run: cmake --build build --parallel && ctest --test-dir build --output-on-failure
+      - name: Run benchmark matrix
+        shell: bash
+        run: |
+          args=()
+          if [[ "${{ inputs.causal }}" == "true" ]]; then args+=(--causal); fi
+          python3 scripts/run_sweep.py \
+            --executable ./build/wave_bench \
+            --output out/rx9070xt.csv \
+            "${args[@]}"
+          python3 scripts/summarize.py out/rx9070xt.csv --output out/RESULTS.md
+      - name: Upload raw data and report
+        uses: actions/upload-artifact@v4
+        with:
+          name: rx9070xt-attention-results
+          path: out/
+
