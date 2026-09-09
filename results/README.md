@@ -2,11 +2,18 @@
 
 | Report | Card | Precision | Kernel | Commit |
 | --- | --- | --- | --- | --- |
-| [rx9070xt-fp32.md](rx9070xt-fp32.md) | RX 9070 XT (`gfx1201`) | FP32 | `7.2.3-arch1-3` | `20d8093` |
+| [rx9070xt-fp32.md](rx9070xt-fp32.md) | RX 9070 XT (`gfx1201`) | FP32 | `7.2.3-arch1-3` | `74a2c38` |
 
-The headline finding is that the fused path is 1.84x to 6.37x *slower* than the
+The headline finding is that the fused path is 1.95x to 7.08x *slower* than the
 materialized baseline at every measured shape, and that caching Q in LDS changes
-almost nothing. Both are explained by profiler data in the report.
+almost nothing. The `tiled` kernel written in response to that profile is 2.63x
+to 7.25x faster than `fused-cached` and narrows the gap to PyTorch SDPA from
+7.9-24.4x down to 2.38-4.65x. All three results are explained by profiler data
+in the report.
+
+The [LDS sizing experiment](lds-sizing/README.md) records three baseline/candidate
+trials in both mask modes. The dynamic-LDS candidate passed correctness but was
+rejected because several shapes regressed; the fixed-LDS kernel remains active.
 
 The publication process below is what those numbers went through.
 

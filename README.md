@@ -16,14 +16,17 @@ flowchart LR
     Q --> M[Materialized HIP path]
     Q --> F[Fused online-softmax HIP path]
     Q --> C[Fused plus cached-Q HIP path]
+    Q --> T[Tiled wave-per-query HIP path]
     Q --> P[PyTorch SDPA baseline]
     R --> V[Correctness check]
     M --> V
     F --> V
     C --> V
+    T --> V
     M --> B[CSV measurements]
     F --> B
     C --> B
+    T --> B
     P --> B
     B --> S[Markdown summary]
 ```
@@ -36,6 +39,7 @@ flowchart LR
 | Materialized HIP | 3 | `O(B * H * N^2)` | Clear performance baseline |
 | Fused HIP | 1 | `O(1)` | Streaming, numerically stable online softmax |
 | Fused-cached HIP | 1 | `O(1)` | Fused path with one LDS load of each Q row |
+| Tiled HIP | 1 | `O(1)` | One wave per query row, K/V tiled through LDS |
 | PyTorch SDPA | framework selected | framework managed | Production-oriented comparison |
 
 All custom GPU paths support causal and non-causal attention. The benchmark
@@ -84,7 +88,7 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 
 ./build/wave_bench \
-  --backend hip --algorithm fused-cached \
+  --backend hip --algorithm tiled \
   --batch 1 --heads 8 --sequence 256 --dimension 64 \
   --warmup 10 --iterations 100 --verify
 ```
@@ -97,11 +101,14 @@ python3 scripts/benchmark_pytorch.py --output out/rx9070xt.csv --append
 python3 scripts/summarize.py out/rx9070xt.csv --output out/RESULTS.md
 ```
 
-The first RX 9070 XT measurements are checked in at
+RX 9070 XT measurements are checked in at
 [results/rx9070xt-fp32.md](results/rx9070xt-fp32.md), with raw CSV and kernel
-traces beside them. They show the fused path running 1.84x to 6.37x *slower* than
-the materialized baseline at every measured shape, and the cached-Q variant
-landing within noise of the plain fused one. The profiler section explains why.
+traces beside them. They show the fused path running 1.95x to 7.08x *slower* than
+the materialized baseline at every measured shape, with the cached-Q variant
+landing within noise of the plain fused one. The `tiled` kernel written in
+response is 2.63x to 7.25x faster than `fused-cached` and is the fastest custom
+path at seven of eight shapes. The profiler section explains both results.
+
 The required methodology is defined in
 [docs/benchmarking.md](docs/benchmarking.md).
 
@@ -111,7 +118,7 @@ Start with a runtime trace to separate dispatch, copies, and kernels:
 
 ```bash
 rocprofv3 --runtime-trace --output-format csv -- \
-  ./build/wave_bench --backend hip --algorithm fused-cached \
+  ./build/wave_bench --backend hip --algorithm tiled \
   --heads 8 --sequence 1024 --dimension 64 --warmup 2 --iterations 10
 ```
 
@@ -131,7 +138,7 @@ them together. The profiling plan and hypotheses are in
 ```text
 include/wave/attention.hpp   Public API and benchmark result schema
 src/attention_cpu.cpp        Stable CPU reference and comparison helpers
-src/attention_hip.hip        Materialized, fused, and cached-fused HIP paths
+src/attention_hip.hip        Materialized, fused, cached-fused, and tiled HIP paths
 src/main.cpp                 Reproducible benchmark CLI and CSV writer
 tests/attention_tests.cpp    CPU semantic tests
 scripts/run_sweep.py         Standard experiment matrix

@@ -29,16 +29,17 @@ Every key iteration rereads Q. Cache the query row once, then measure the effect
 on cache misses, memory traffic, occupancy, and latency. LDS use can reduce
 occupancy, so the counter evidence matters.
 
-Status: implemented as the separate `fused-cached` variant; target-GPU
-measurement is pending.
+Status: measured as the separate `fused-cached` variant; caching Q changed
+latency within noise. See [the FP32 report](../results/rx9070xt-fp32.md).
 
 ## Optimization roadmap
 
 | Stage | Change | Status | Evidence required |
 | --- | --- | --- | --- |
-| 1 | Cache Q in LDS | Implemented, unmeasured | Latency, occupancy, cache counters |
-| 2 | Tile K/V through LDS | Planned | Latency, occupancy, cache counters |
-| 3 | Wave-level reductions | Planned | Correctness on wave32/wave64, barrier count |
+| 1 | Cache Q in LDS | Measured; within noise | See FP32 report |
+| 2 | Tile K/V through LDS | Measured on gfx1201 | See FP32 report |
+| 3 | Wave-level reductions | Measured on gfx1201; wave64 unvalidated | See FP32 report |
+| 3a | Size LDS to head dimension | Rejected dynamic-LDS candidate | See LDS sizing experiment |
 | 4 | Vectorized aligned loads | Planned | Dimension sweep, sanitizer/static checks |
 | 5 | FP16/BF16 with FP32 accumulation | Planned | Error distributions, throughput |
 | 6 | RDNA WMMA score tiles | Planned | ISA inspection, utilization, speedup |
@@ -54,6 +55,19 @@ measurement is pending.
 - Verify each optimized variant against the CPU oracle before timing large shapes.
 - Change one meaningful variable per experiment.
 - Do not claim physical bandwidth from the CLI's logical-byte estimate.
+
+## LDS sizing experiment (2026-09-09)
+
+The dynamic-LDS candidate passed all 144 GPU boundary cases and all 96 verified
+benchmark runs, but regressed several shapes. It was not promoted; the fixed
+32 KiB kernel remains the default. The candidate patch, all three trials in
+both mask modes, profiler traces, and reproduction script are retained in
+[the experiment report](../results/lds-sizing/README.md).
+
+Next experiment: specialize the static LDS allocation by head dimension, then
+repeat the same correctness and performance gates. Dynamic allocation changed
+compiler resource usage as well as the requested LDS size, so this experiment
+does not isolate an occupancy benefit.
 
 ## Result log template
 

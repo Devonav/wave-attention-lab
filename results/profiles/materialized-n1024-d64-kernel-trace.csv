@@ -1,37 +1,37 @@
 "Kind","Agent_Id","Queue_Id","Stream_Id","Thread_Id","Dispatch_Id","Kernel_Id","Kernel_Name","Correlation_Id","Start_Timestamp","End_Timestamp","LDS_Block_Size","Scratch_Size","VGPR_Count","Accum_VGPR_Count","SGPR_Count","Workgroup_Size_X","Workgroup_Size_Y","Workgroup_Size_Z","Grid_Size_X","Grid_Size_Y","Grid_Size_Z"
-"KERNEL_DISPATCH","Agent 1",1,0,8691,1,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",1,411522346780,411532362978,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,2,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",2,411532373498,411532620546,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,3,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",3,411532624707,411535166517,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,4,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",4,411535170327,411546635979,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,5,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",5,411546639819,411546862586,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,6,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",6,411546866467,411549118308,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,7,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",7,411549173486,411560108678,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,8,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",8,411560124958,411560341645,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,9,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",9,411560345405,411562579326,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,10,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",10,411562611087,411574270785,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,11,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",11,411574283306,411574530714,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,12,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",12,411574534535,411576781975,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,13,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",13,411576811815,411587558238,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,14,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",14,411587574439,411587781886,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,15,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",15,411587785646,411589968564,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,16,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",16,411589995608,411600603911,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,17,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",17,411600616271,411600819958,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,18,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",18,411600823598,411603043478,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,19,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",19,411603070079,411612921314,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,20,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",20,411612933675,411613192124,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,21,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",21,411613195804,411615310641,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,22,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",22,411615337682,411625095114,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,23,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",23,411625107394,411625359843,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,24,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",24,411625363409,411627428363,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,25,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",25,411627454563,411636901622,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,26,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",26,411636913902,411637104229,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,27,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",27,411637107829,411639183623,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,28,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",28,411639210064,411648608361,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,29,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",29,411648620681,411648810488,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,30,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",30,411648814088,411650791839,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,31,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",31,411650819480,411659984848,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,32,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",32,411660000849,411660185015,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,33,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",33,411660188572,411662220324,0,0,8,0,128,256,1,1,524288,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,34,20,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",34,411662246044,411670973357,0,0,8,0,128,256,1,1,8388608,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,35,17,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",35,411670976877,411671202645,1024,0,16,0,128,256,1,1,2097152,1,1
-"KERNEL_DISPATCH","Agent 1",1,0,8691,36,16,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",36,411671206165,411673175675,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,1,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",1,1616242592089,1616248388771,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,2,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",2,1616248402531,1616248545252,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,3,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",3,1616248548492,1616250433385,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,4,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",4,1616250436767,1616256183413,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,5,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",5,1616256195213,1616256319814,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,6,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",6,1616256322934,1616257748825,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,7,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",7,1616257784305,1616262882547,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,8,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",8,1616262894347,1616263008228,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,9,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",9,1616263011220,1616264371032,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,10,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",10,1616264398652,1616269411217,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,11,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",11,1616269422937,1616269539058,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,12,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",12,1616269542098,1616270903110,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,13,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",13,1616270925526,1616275922812,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,14,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",14,1616275934532,1616276050653,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,15,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",15,1616276053693,1616277417065,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,16,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",16,1616277439705,1616282446432,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,17,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",17,1616282458072,1616282573833,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,18,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",18,1616282576793,1616283939606,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,19,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",19,1616283964422,1616288775187,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,20,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",20,1616288786947,1616288902148,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,21,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",21,1616288905148,1616290267881,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,22,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",22,1616290290921,1616295225488,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,23,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",23,1616295237208,1616295359689,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,24,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",24,1616295362649,1616296723942,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,25,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",25,1616296746462,1616301882271,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,26,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",26,1616301893991,1616302009912,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,27,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",27,1616302012913,1616303375805,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,28,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",28,1616303398274,1616308457873,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,29,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",29,1616308469593,1616308584113,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,30,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",30,1616308587153,1616309947204,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,31,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",31,1616309969764,1616315175685,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,32,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",32,1616315187325,1616315302726,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,33,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",33,1616315305766,1616316668657,0,0,8,0,128,256,1,1,524288,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,34,21,"wave::(anonymous namespace)::score_kernel(float const*, float const*, float*, int, int, int, float, bool)",34,1616316691257,1616321682496,0,0,8,0,128,256,1,1,8388608,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,35,20,"wave::(anonymous namespace)::softmax_kernel(float*, int, int, bool)",35,1616321694216,1616321809177,1024,0,16,0,128,256,1,1,2097152,1,1
+"KERNEL_DISPATCH","Agent 1",1,0,17588,36,18,"wave::(anonymous namespace)::apply_value_kernel(float const*, float const*, float*, int, int, int)",36,1616321812137,1616323176268,0,0,8,0,128,256,1,1,524288,1,1

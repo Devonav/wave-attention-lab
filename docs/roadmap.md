@@ -31,9 +31,10 @@ noise of the plain fused one.
 
 ## Milestone 2: RDNA4 optimization
 
-- [ ] Tile queries so a block serves several query rows instead of one
-- [ ] Cache and tile K/V through LDS
-- [ ] Replace block reductions with measured wave-level reductions
+- [x] Tile queries so a block serves several query rows instead of one
+- [x] Cache and tile K/V through LDS
+- [x] Replace block reductions with measured wave-level reductions
+- [ ] Size the LDS tile to the actual head dimension (dynamic-LDS experiment rejected; see optimization notes)
 - [ ] Add aligned vector loads and tail handling
 - [ ] Add FP16 and BF16 inputs with FP32 accumulation
 - [ ] Evaluate WMMA score tiles on RDNA4
@@ -41,6 +42,12 @@ noise of the plain fused one.
 
 Exit criterion: each accepted optimization has before/after profiler evidence
 and no correctness regressions across the test matrix.
+
+The `tiled` kernel delivers the first three items together, since they address a
+single bottleneck and are not separable within one kernel. Measured at 2.63x to
+7.25x over `fused-cached`, with before/after traces in
+[results/rx9070xt-fp32.md](../results/rx9070xt-fp32.md). It is slower than the
+materialized baseline at `N=128 D=64`, which is recorded rather than hidden.
 
 ## Milestone 3: PyTorch custom operator
 
@@ -74,4 +81,3 @@ and no correctness regressions across the test matrix.
 
 The tuning agent will not initially rewrite arbitrary kernel code. Constraining
 its actions makes experiments reproducible and keeps correctness gating explicit.
-

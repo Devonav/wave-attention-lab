@@ -1,0 +1,26 @@
+diff --git i/src/attention_hip.hip w/src/attention_hip.hip
+index f145d0c..67a047b 100644
+--- i/src/attention_hip.hip
++++ w/src/attention_hip.hip
+@@ -297,8 +297,10 @@ __global__ __launch_bounds__(kThreads) void tiled_attention_kernel(
+     int dimension,
+     float scale,
+     bool causal) {
+-    __shared__ float tile_key[kTileKeys * kMaxTiledDimension];
+-    __shared__ float tile_value[kTileKeys * kMaxTiledDimension];
++    // Reserve only the active head dimension: 16 KiB at D=64, 32 KiB at D=128.
++    extern __shared__ float tile_storage[];
++    float* tile_key = tile_storage;
++    float* tile_value = tile_storage + kTileKeys * dimension;
+ 
+     const int lane = threadIdx.x % warpSize;
+     const int wave = threadIdx.x / warpSize;
+@@ -480,7 +482,7 @@ void launch_attention(
+             dim3((sequence + waves_per_block - 1) / waves_per_block,
+                  rows / sequence),
+             dim3(kThreads),
+-            0,
++            2 * kTileKeys * dimension * sizeof(float),
+             0,
+             query,
+             key,
