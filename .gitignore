@@ -1,10 +1,12 @@
 /build/
+/build-*/
+/.venv/
 /out/
 /.cache/
 __pycache__/
 *.py[cod]
 *.csv
-!results/*.csv
+!results/**/*.csv
 *.db
 *.pftrace
 .vs/
