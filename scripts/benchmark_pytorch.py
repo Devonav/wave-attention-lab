@@ -102,7 +102,11 @@ def benchmark_shape(torch, functional, args, sequence: int, dimension: int) -> d
     torch.cuda.synchronize()
     samples = [start.elapsed_time(stop) for start, stop in zip(starts, stops)]
     median_ms = statistics.median(samples)
-    operations = 4.0 * args.batch * args.heads * sequence * sequence * dimension
+    # Causal attention evaluates only the lower triangle, N(N+1)/2 query-key
+    # pairs rather than N^2, so counting the full square overstates throughput by
+    # close to 2x at large N.
+    pairs = sequence * (sequence + 1) / 2 if args.causal else sequence * sequence
+    operations = 4.0 * args.batch * args.heads * pairs * dimension
     logical_bytes = 4.0 * args.batch * args.heads * sequence * dimension * output.element_size()
     properties = torch.cuda.get_device_properties(0)
 

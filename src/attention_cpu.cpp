@@ -24,12 +24,20 @@ void validate_inputs(
     }
 }
 
-double estimated_tflops(const AttentionShape& shape, double milliseconds) {
+// Causal attention evaluates only the lower triangle, N(N+1)/2 query-key pairs
+// rather than N^2, so counting the full square overstates throughput by close to
+// 2x at large N.
+double attention_pairs(const AttentionShape& shape, bool causal) {
+    const double sequence = static_cast<double>(shape.sequence);
+    return causal ? sequence * (sequence + 1.0) / 2.0 : sequence * sequence;
+}
+
+double estimated_tflops(const AttentionShape& shape, double milliseconds, bool causal) {
     if (milliseconds <= 0.0) {
         return 0.0;
     }
-    const double operations = 4.0 * shape.batch * shape.heads * shape.sequence *
-                              shape.sequence * shape.head_dimension;
+    const double operations = 4.0 * shape.batch * shape.heads *
+                              attention_pairs(shape, causal) * shape.head_dimension;
     return operations / (milliseconds * 1.0e9);
 }
 
@@ -171,7 +179,7 @@ RunResult benchmark_cpu(
     RunResult result;
     result.output = std::move(output);
     populate_timing_statistics(result, std::move(samples));
-    result.tflops = estimated_tflops(shape, result.median_ms);
+    result.tflops = estimated_tflops(shape, result.median_ms, causal);
     result.logical_bandwidth_gbs = logical_bandwidth(shape, result.median_ms);
     result.workspace_bytes = static_cast<std::size_t>(shape.sequence) * sizeof(float);
     result.device = "CPU reference";
