@@ -1,8 +1,14 @@
 # Results
 
-No RX 9070 XT performance results have been published yet. This is intentional:
-the current development environment can validate the CPU and reporting paths,
-but does not have the HIP SDK installed.
+| Report | Card | Precision | Commit |
+| --- | --- | --- | --- |
+| [rx9070xt-fp32.md](rx9070xt-fp32.md) | RX 9070 XT (`gfx1201`) | FP32 | `5e1be9b` |
+
+The headline finding is that the fused path is 1.9x to 4.0x *slower* than the
+materialized baseline at every measured shape, and that caching Q in LDS changes
+almost nothing. Both are explained by profiler data in the report.
+
+The publication process below is what those numbers went through.
 
 ```mermaid
 flowchart LR
@@ -24,7 +30,7 @@ A result is publishable only when it includes:
 - A profiler-backed explanation of the main bottleneck
 - Explicit disclosure of clock, power, and thermal settings
 
-The first report will compare `materialized`, `fused`, and `fused-cached` at
-sequence lengths 128, 256, 512, and 1024 with dimensions 64 and 128. Larger
-shapes follow after correctness and memory behavior are understood.
+The first report compares `materialized`, `fused`, and `fused-cached` at sequence
+lengths 128, 256, 512, and 1024 with dimensions 64 and 128. Larger shapes follow
+after correctness and memory behavior are understood.
 

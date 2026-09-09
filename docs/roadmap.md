@@ -17,15 +17,21 @@ flowchart LR
 - [x] Query-cached fused experiment
 - [x] Median, p95, min, max, device, runtime, and revision metadata
 - [x] PyTorch SDPA performance harness
-- [ ] Compile all HIP variants for `gfx1201`
-- [ ] Publish RX 9070 XT raw measurements
-- [ ] Publish runtime trace and profiler comparison
+- [x] Compile all HIP variants for `gfx1201`
+- [x] Publish RX 9070 XT raw measurements
+- [x] Publish runtime trace and profiler comparison
 
 Exit criterion: all small shapes pass correctness and a checked-in report
 explains the baseline using measurements rather than estimates.
 
+Met by [results/rx9070xt-fp32.md](../results/rx9070xt-fp32.md). The measurements
+overturned the assumption this milestone was built on: the fused path is slower
+than the materialized baseline at every shape, and the cached-Q variant is within
+noise of the plain fused one.
+
 ## Milestone 2: RDNA4 optimization
 
+- [ ] Tile queries so a block serves several query rows instead of one
 - [ ] Cache and tile K/V through LDS
 - [ ] Replace block reductions with measured wave-level reductions
 - [ ] Add aligned vector loads and tail handling

@@ -68,9 +68,11 @@ On a Visual Studio generator, the executable is normally at
 
 ## RX 9070 XT HIP build
 
-For a Windows host, use Ubuntu 22.04 or 24.04 under WSL and follow AMD's current
-ROCm-on-WSL installation instructions. The card's compiler target is `gfx1201`.
-See [docs/setup-rx9070xt.md](docs/setup-rx9070xt.md) for the host checklist.
+The card's compiler target is `gfx1201`, which needs ROCm 6.4 or newer. On Arch
+Linux the toolchain is one command: `sudo pacman -Syu rocm-hip-sdk rocminfo
+rocm-smi-lib rocprofiler`. For a Windows host, use Ubuntu 22.04 or 24.04 under
+WSL and follow AMD's current ROCm-on-WSL instructions. See
+[docs/setup-rx9070xt.md](docs/setup-rx9070xt.md) for the host checklist.
 
 ```bash
 cmake -S . -B build -G Ninja \
@@ -95,9 +97,12 @@ python3 scripts/benchmark_pytorch.py --output out/rx9070xt.csv --append
 python3 scripts/summarize.py out/rx9070xt.csv --output out/RESULTS.md
 ```
 
-No RX 9070 XT performance numbers are checked in yet. Results will be published
-only after the HIP build runs on the target card with correctness enabled. The
-required methodology is defined in
+The first RX 9070 XT measurements are checked in at
+[results/rx9070xt-fp32.md](results/rx9070xt-fp32.md), with raw CSV and kernel
+traces beside them. They show the fused path running 1.9x to 4.0x *slower* than
+the materialized baseline at every measured shape, and the cached-Q variant
+landing within noise of the plain fused one. The profiler section explains why.
+The required methodology is defined in
 [docs/benchmarking.md](docs/benchmarking.md).
 
 ## Profiling
