@@ -1,0 +1,4 @@
+#pragma once
+
+// Generated at build time by cmake/WaveGitSha.cmake. Do not edit.
+#define WAVE_GIT_SHA "@WAVE_GIT_SHA@"

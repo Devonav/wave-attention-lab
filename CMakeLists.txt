@@ -31,17 +31,21 @@ endif()
 add_executable(wave_bench src/main.cpp)
 target_link_libraries(wave_bench PRIVATE wave::attention)
 
-execute_process(
-    COMMAND git rev-parse --short HEAD
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    OUTPUT_VARIABLE WAVE_GIT_SHA
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
+# Regenerated on every build so a published CSV never claims a stale commit.
+set(WAVE_GIT_SHA_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/wave/git_sha.h")
+add_custom_target(wave_git_sha ALL
+    COMMAND ${CMAKE_COMMAND}
+        -DWAVE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DWAVE_INPUT=${CMAKE_SOURCE_DIR}/cmake/git_sha.h.in
+        -DWAVE_OUTPUT=${WAVE_GIT_SHA_HEADER}
+        -P ${CMAKE_SOURCE_DIR}/cmake/WaveGitSha.cmake
+    BYPRODUCTS "${WAVE_GIT_SHA_HEADER}"
+    COMMENT "Resolving git revision"
+    VERBATIM
 )
-if(NOT WAVE_GIT_SHA)
-    set(WAVE_GIT_SHA unknown)
-endif()
-target_compile_definitions(wave_bench PRIVATE WAVE_GIT_SHA="${WAVE_GIT_SHA}")
+add_dependencies(wave_bench wave_git_sha)
+target_include_directories(wave_bench PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+target_compile_definitions(wave_bench PRIVATE WAVE_HAS_GIT_SHA_HEADER=1)
 
 include(CTest)
 if(BUILD_TESTING)
