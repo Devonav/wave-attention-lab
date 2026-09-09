@@ -1,10 +1,10 @@
 # Results
 
-| Report | Card | Precision | Commit |
-| --- | --- | --- | --- |
-| [rx9070xt-fp32.md](rx9070xt-fp32.md) | RX 9070 XT (`gfx1201`) | FP32 | `5e1be9b` |
+| Report | Card | Precision | Kernel | Commit |
+| --- | --- | --- | --- | --- |
+| [rx9070xt-fp32.md](rx9070xt-fp32.md) | RX 9070 XT (`gfx1201`) | FP32 | `7.2.3-arch1-3` | `20d8093` |
 
-The headline finding is that the fused path is 1.9x to 4.0x *slower* than the
+The headline finding is that the fused path is 1.84x to 6.37x *slower* than the
 materialized baseline at every measured shape, and that caching Q in LDS changes
 almost nothing. Both are explained by profiler data in the report.
 

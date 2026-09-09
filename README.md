@@ -99,7 +99,7 @@ python3 scripts/summarize.py out/rx9070xt.csv --output out/RESULTS.md
 
 The first RX 9070 XT measurements are checked in at
 [results/rx9070xt-fp32.md](results/rx9070xt-fp32.md), with raw CSV and kernel
-traces beside them. They show the fused path running 1.9x to 4.0x *slower* than
+traces beside them. They show the fused path running 1.84x to 6.37x *slower* than
 the materialized baseline at every measured shape, and the cached-Q variant
 landing within noise of the plain fused one. The profiler section explains why.
 The required methodology is defined in
