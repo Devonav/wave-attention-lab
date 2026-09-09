@@ -13,6 +13,7 @@ CSV = """device,architecture,backend,algorithm,dtype,batch,heads,sequence,dimens
 AMD Radeon RX 9070 XT,gfx1201,hip,materialized,fp32,1,8,128,64,0,2.1,2.0,2.3,1.0,1.0,524288,0.0001,0.001
 AMD Radeon RX 9070 XT,gfx1201,hip,fused,fp32,1,8,128,64,0,1.6,1.5,1.8,2.0,2.0,0,0.0002,0.002
 AMD Radeon RX 9070 XT,gfx1201,hip,fused-cached,fp32,1,8,128,64,0,1.1,1.0,1.2,2.0,2.0,0,0.00015,0.0015
+AMD Radeon RX 9070 XT,gfx1201,hip,tiled,fp32,1,8,128,64,0,1.1,1.0,1.2,2.0,2.0,0,0.00015,0.0015
 AMD Radeon Graphics,gfx1201,pytorch,sdpa-auto,fp32,1,8,128,64,0,0.9,0.8,1.0,2.0,2.0,-1,,
 """
 
@@ -24,6 +25,7 @@ class SummarizeTests(unittest.TestCase):
             path.write_text(CSV, encoding="utf-8")
             report = summarize(load_rows(path))
 
+        # Ratio columns track the tiled path: 2.0/1.0 and 0.8/1.0.
         self.assertIn("2.00x", report)
         self.assertIn("524,288 B", report)
         self.assertIn("0.0002", report)

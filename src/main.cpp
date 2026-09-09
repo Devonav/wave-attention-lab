@@ -16,6 +16,10 @@
 
 namespace {
 
+#ifdef WAVE_HAS_GIT_SHA_HEADER
+#include "wave/git_sha.h"
+#endif
+
 #ifndef WAVE_GIT_SHA
 #define WAVE_GIT_SHA "unknown"
 #endif
@@ -37,7 +41,7 @@ void print_help() {
         << "wave_bench - scaled dot-product attention kernel lab\n\n"
         << "Options:\n"
         << "  --backend cpu|hip        Execution backend (default: cpu)\n"
-        << "  --algorithm fused|fused-cached|materialized\n"
+        << "  --algorithm fused|fused-cached|materialized|tiled\n"
         << "  --batch N                Batch size (default: 1)\n"
         << "  --heads N                Attention heads (default: 8)\n"
         << "  --sequence N             Sequence length (default: 128)\n"
@@ -76,11 +80,13 @@ Options parse_options(int argc, char** argv) {
                 options.algorithm = wave::HipAlgorithm::fused;
             } else if (value == "fused-cached") {
                 options.algorithm = wave::HipAlgorithm::fused_cached;
+            } else if (value == "tiled") {
+                options.algorithm = wave::HipAlgorithm::tiled;
             } else if (value == "materialized") {
                 options.algorithm = wave::HipAlgorithm::materialized;
             } else {
                 throw std::invalid_argument(
-                    "algorithm must be fused, fused-cached, or materialized");
+                    "algorithm must be fused, fused-cached, materialized, or tiled");
             }
         } else if (argument == "--batch") {
             options.shape.batch = std::stoi(require_value(index, argc, argv));
@@ -121,6 +127,8 @@ const char* algorithm_name(wave::HipAlgorithm algorithm) {
             return "fused";
         case wave::HipAlgorithm::fused_cached:
             return "fused-cached";
+        case wave::HipAlgorithm::tiled:
+            return "tiled";
     }
     throw std::invalid_argument("unknown HIP algorithm");
 }

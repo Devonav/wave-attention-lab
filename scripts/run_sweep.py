@@ -40,7 +40,7 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     for sequence in args.sequences:
         for dimension in args.dimensions:
-            for algorithm in ("materialized", "fused", "fused-cached"):
+            for algorithm in ("materialized", "fused", "fused-cached", "tiled"):
                 command = [
                     str(executable),
                     "--backend", "hip",

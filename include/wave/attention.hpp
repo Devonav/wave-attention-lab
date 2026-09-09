@@ -28,6 +28,7 @@ enum class HipAlgorithm {
     materialized,
     fused,
     fused_cached,
+    tiled,
 };
 
 struct RunResult {

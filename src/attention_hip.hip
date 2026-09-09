@@ -272,6 +272,129 @@ __global__ void fused_cached_attention_kernel(
     }
 }
 
+// Query-tiled path. The fused kernels measured slower than the materialized
+// baseline because each block served one query row and ran a full block-wide
+// tree reduction, with a __syncthreads() at every step, once per key. This
+// kernel fixes both halves of that:
+//
+//   * one wavefront serves one query row, so the score reduction is a butterfly
+//     shuffle inside the wave and needs no barrier at all;
+//   * K and V are staged in LDS one tile at a time and reused by every wave in
+//     the block, so the only barriers left are two per key tile.
+//
+// At N=1024 with a 32-key tile that is 64 barriers per block rather than the
+// 8192 the fused kernel executes per query row.
+constexpr int kTileKeys = 32;
+constexpr int kMaxTiledDimension = 128;
+constexpr int kMaxFragments = 4;
+
+__global__ __launch_bounds__(kThreads) void tiled_attention_kernel(
+    const float* __restrict__ query,
+    const float* __restrict__ key,
+    const float* __restrict__ value,
+    float* __restrict__ output,
+    int sequence,
+    int dimension,
+    float scale,
+    bool causal) {
+    __shared__ float tile_key[kTileKeys * kMaxTiledDimension];
+    __shared__ float tile_value[kTileKeys * kMaxTiledDimension];
+
+    const int lane = threadIdx.x % warpSize;
+    const int wave = threadIdx.x / warpSize;
+    const int waves_per_block = blockDim.x / warpSize;
+
+    const int head_base = blockIdx.y * sequence * dimension;
+    const int query_index = blockIdx.x * waves_per_block + wave;
+    const int query_base = head_base + query_index * dimension;
+    const int fragments = (dimension + warpSize - 1) / warpSize;
+
+    float query_fragment[kMaxFragments];
+    float accumulator[kMaxFragments];
+    for (int f = 0; f < kMaxFragments; ++f) {
+        query_fragment[f] = 0.0f;
+        accumulator[f] = 0.0f;
+    }
+    if (query_index < sequence) {
+        for (int f = 0; f < fragments; ++f) {
+            const int column = lane + f * warpSize;
+            if (column < dimension) {
+                query_fragment[f] = query[query_base + column];
+            }
+        }
+    }
+
+    // Every wave in the block must reach the same __syncthreads() calls, so the
+    // tile loop is bounded by the largest key limit in the block rather than by
+    // this wave's own limit. Individual waves stop accumulating earlier.
+    const int last_query = min(blockIdx.x * waves_per_block + waves_per_block - 1, sequence - 1);
+    const int block_key_limit = causal ? last_query + 1 : sequence;
+    const int key_limit = causal ? min(query_index + 1, sequence) : sequence;
+
+    float running_max = -INFINITY;
+    float running_sum = 0.0f;
+
+    for (int tile_start = 0; tile_start < block_key_limit; tile_start += kTileKeys) {
+        const int tile_keys = min(kTileKeys, sequence - tile_start);
+        __syncthreads();
+        for (int i = threadIdx.x; i < tile_keys * dimension; i += blockDim.x) {
+            const int j = i / dimension;
+            const int column = i - j * dimension;
+            const int source = head_base + (tile_start + j) * dimension + column;
+            tile_key[i] = key[source];
+            tile_value[i] = value[source];
+        }
+        __syncthreads();
+
+        for (int j = 0; j < tile_keys; ++j) {
+            if (tile_start + j >= key_limit) {
+                break;  // Safe to diverge: no barrier inside this loop.
+            }
+            float partial = 0.0f;
+            for (int f = 0; f < fragments; ++f) {
+                const int column = lane + f * warpSize;
+                if (column < dimension) {
+                    partial += query_fragment[f] * tile_key[j * dimension + column];
+                }
+            }
+            for (int mask = warpSize / 2; mask > 0; mask >>= 1) {
+                partial += __shfl_xor(partial, mask, warpSize);
+            }
+
+            const float score = partial * scale;
+            const float next_max = fmaxf(running_max, score);
+            const float alpha = running_sum == 0.0f ? 0.0f : expf(running_max - next_max);
+            const float beta = expf(score - next_max);
+            running_sum = running_sum * alpha + beta;
+            running_max = next_max;
+            for (int f = 0; f < fragments; ++f) {
+                const int column = lane + f * warpSize;
+                if (column < dimension) {
+                    accumulator[f] =
+                        accumulator[f] * alpha + beta * tile_value[j * dimension + column];
+                }
+            }
+        }
+    }
+
+    if (query_index < sequence && running_sum > 0.0f) {
+        for (int f = 0; f < fragments; ++f) {
+            const int column = lane + f * warpSize;
+            if (column < dimension) {
+                output[query_base + column] = accumulator[f] / running_sum;
+            }
+        }
+    }
+}
+
+int device_warp_size() {
+    static const int warp = [] {
+        hipDeviceProp_t properties{};
+        return hipGetDeviceProperties(&properties, 0) == hipSuccess ? properties.warpSize : 32;
+    }();
+    return warp;
+}
+
 class DeviceBuffer {
 public:
     explicit DeviceBuffer(std::size_t bytes) {
@@ -347,6 +470,26 @@ void launch_attention(
             rows,
             sequence,
             dimension);
+    } else if (algorithm == HipAlgorithm::tiled) {
+        if (dimension > kMaxTiledDimension) {
+            throw std::invalid_argument("tiled HIP kernel supports head dimensions up to 128");
+        }
+        const int waves_per_block = kThreads / device_warp_size();
+        hipLaunchKernelGGL(
+            tiled_attention_kernel,
+            dim3((sequence + waves_per_block - 1) / waves_per_block,
+                 rows / sequence),
+            dim3(kThreads),
+            0,
+            0,
+            query,
+            key,
+            value,
+            output,
+            sequence,
+            dimension,
+            scale,
+            causal);
     } else {
         if (dimension > kThreads) {
             throw std::invalid_argument("fused HIP kernel supports head dimensions up to 256");

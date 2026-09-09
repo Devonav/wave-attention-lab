@@ -57,8 +57,8 @@ def summarize(rows: list[dict[str, str]]) -> str:
     lines = [
         "# Wave Attention Benchmark Results",
         "",
-        "| Device | Type | B | H | N | D | Causal | Materialized | Fused | Cached | PyTorch SDPA | Cached vs baseline | Cached vs SDPA | Cached p95 | Workspace saved | Max abs error |",
-        "| --- | --- | ---: | ---: | ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Device | Type | B | H | N | D | Causal | Materialized | Fused | Cached | Tiled | PyTorch SDPA | Tiled vs baseline | Tiled vs SDPA | Tiled p95 | Workspace saved | Max abs error |",
+        "| --- | --- | ---: | ---: | ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     comparisons = 0
     trial_counts: set[int] = set()
@@ -73,17 +73,22 @@ def summarize(rows: list[dict[str, str]]) -> str:
         materialized_ms = trial_median(materialized, "median_ms")
         fused_ms = trial_median(fused, "median_ms")
         cached_ms = trial_median(cached, "median_ms")
-        cached_p95 = trial_median(cached, "p95_ms")
-        speedup = materialized_ms / cached_ms if cached_ms else 0.0
+        # Ratio columns track the tiled path, which is the fastest custom kernel.
+        # It is optional so that CSVs recorded before it existed still summarize.
+        tiled = variants.get("tiled")
+        tiled_ms = trial_median(tiled, "median_ms") if tiled else None
+        tiled_p95 = trial_median(tiled, "p95_ms") if tiled else None
         sdpa = variants.get("sdpa-auto")
         sdpa_ms = trial_median(sdpa, "median_ms") if sdpa else None
-        sdpa_speedup = sdpa_ms / cached_ms if sdpa_ms is not None and cached_ms else None
+        speedup = materialized_ms / tiled_ms if tiled_ms else None
+        sdpa_speedup = sdpa_ms / tiled_ms if sdpa_ms is not None and tiled_ms else None
+        reference = tiled if tiled else cached
         workspace_saved = int(materialized[0]["workspace_bytes"]) - int(
-            cached[0]["workspace_bytes"]
+            reference[0]["workspace_bytes"]
         )
         error = max(
             float(trial["max_abs_error"])
-            for trials in (materialized, fused, cached)
+            for trials in (materialized, fused, cached, tiled or [])
             for trial in trials
         )
         trial_counts.update(len(trials) for trials in variants.values())
@@ -93,9 +98,12 @@ def summarize(rows: list[dict[str, str]]) -> str:
             f"| {device} | {dtype} | {batch} | {heads} | {sequence} | {dimension} | "
             f"{'yes' if causal == '1' else 'no'} | {materialized_ms:.4f} ms | "
             f"{fused_ms:.4f} ms | {cached_ms:.4f} ms | "
-            f"{f'{sdpa_ms:.4f} ms' if sdpa_ms is not None else '-'} | {speedup:.2f}x | "
+            f"{f'{tiled_ms:.4f} ms' if tiled_ms is not None else '-'} | "
+            f"{f'{sdpa_ms:.4f} ms' if sdpa_ms is not None else '-'} | "
+            f"{f'{speedup:.2f}x' if speedup is not None else '-'} | "
             f"{f'{sdpa_speedup:.2f}x' if sdpa_speedup is not None else '-'} | "
-            f"{cached_p95:.4f} ms | {workspace_saved:,} B | {error:.3g} |"
+            f"{f'{tiled_p95:.4f} ms' if tiled_p95 is not None else '-'} | "
+            f"{workspace_saved:,} B | {error:.3g} |"
         )
         comparisons += 1
     if comparisons == 0:
