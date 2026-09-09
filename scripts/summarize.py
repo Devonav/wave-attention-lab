@@ -7,6 +7,7 @@ import argparse
 import csv
 from collections import defaultdict
 from pathlib import Path
+from statistics import median
 
 
 # Grouping uses architecture rather than device. The HIP backend reports
@@ -34,11 +35,24 @@ def load_rows(path: Path) -> list[dict[str, str]]:
     return rows
 
 
+def trial_median(trials: list[dict[str, str]], field: str) -> float:
+    """Median across trials of a per-trial statistic.
+
+    Each CSV row is one complete trial that already aggregated its own
+    iterations, so combining trials means taking the median of their medians.
+    Reporting a single trial would defeat the repeated-measurement requirement in
+    results/README.md.
+    """
+    return median(float(trial.get(field) or trial["average_ms"]) for trial in trials)
+
+
 def summarize(rows: list[dict[str, str]]) -> str:
-    groups: dict[tuple[str, ...], dict[str, dict[str, str]]] = defaultdict(dict)
+    groups: dict[tuple[str, ...], dict[str, list[dict[str, str]]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     for row in rows:
         key = tuple(row[field] for field in KEY_FIELDS)
-        groups[key][row["algorithm"]] = row
+        groups[key][row["algorithm"]].append(row)
 
     lines = [
         "# Wave Attention Benchmark Results",
@@ -47,6 +61,7 @@ def summarize(rows: list[dict[str, str]]) -> str:
         "| --- | --- | ---: | ---: | ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     comparisons = 0
+    trial_counts: set[int] = set()
     for key in sorted(groups):
         variants = groups[key]
         required_variants = {"materialized", "fused", "fused-cached"}
@@ -55,22 +70,25 @@ def summarize(rows: list[dict[str, str]]) -> str:
         materialized = variants["materialized"]
         fused = variants["fused"]
         cached = variants["fused-cached"]
-        materialized_ms = float(materialized.get("median_ms") or materialized["average_ms"])
-        fused_ms = float(fused.get("median_ms") or fused["average_ms"])
-        cached_ms = float(cached.get("median_ms") or cached["average_ms"])
-        cached_p95 = float(cached.get("p95_ms") or cached["average_ms"])
+        materialized_ms = trial_median(materialized, "median_ms")
+        fused_ms = trial_median(fused, "median_ms")
+        cached_ms = trial_median(cached, "median_ms")
+        cached_p95 = trial_median(cached, "p95_ms")
         speedup = materialized_ms / cached_ms if cached_ms else 0.0
         sdpa = variants.get("sdpa-auto")
-        sdpa_ms = float(sdpa.get("median_ms") or sdpa["average_ms"]) if sdpa else None
+        sdpa_ms = trial_median(sdpa, "median_ms") if sdpa else None
         sdpa_speedup = sdpa_ms / cached_ms if sdpa_ms is not None and cached_ms else None
-        workspace_saved = int(materialized["workspace_bytes"]) - int(cached["workspace_bytes"])
-        error = max(
-            float(materialized["max_abs_error"]),
-            float(fused["max_abs_error"]),
-            float(cached["max_abs_error"]),
+        workspace_saved = int(materialized[0]["workspace_bytes"]) - int(
+            cached[0]["workspace_bytes"]
         )
+        error = max(
+            float(trial["max_abs_error"])
+            for trials in (materialized, fused, cached)
+            for trial in trials
+        )
+        trial_counts.update(len(trials) for trials in variants.values())
         architecture, dtype, batch, heads, sequence, dimension, causal = key
-        device = materialized["device"]
+        device = materialized[0]["device"]
         lines.append(
             f"| {device} | {dtype} | {batch} | {heads} | {sequence} | {dimension} | "
             f"{'yes' if causal == '1' else 'no'} | {materialized_ms:.4f} ms | "
@@ -82,9 +100,16 @@ def summarize(rows: list[dict[str, str]]) -> str:
         comparisons += 1
     if comparisons == 0:
         raise ValueError("no shapes contain materialized, fused, and fused-cached results")
+    trials = (
+        str(trial_counts.pop())
+        if len(trial_counts) == 1
+        else f"{min(trial_counts)}-{max(trial_counts)}"
+    )
     lines.extend([
         "",
-        "Generated from raw `wave_bench` CSV rows. Timing covers GPU kernels only.",
+        f"Generated from raw `wave_bench` CSV rows over {trials} trial(s) per cell; "
+        "each figure is the median across trials of that trial's own median. "
+        "Timing covers GPU kernels only.",
         "",
     ])
     return "\n".join(lines)

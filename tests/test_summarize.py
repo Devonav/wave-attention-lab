@@ -33,6 +33,26 @@ class SummarizeTests(unittest.TestCase):
         # The Device column shows the custom-kernel device, not the PyTorch one.
         self.assertIn("AMD Radeon RX 9070 XT", report)
 
+    def test_aggregates_across_trials_instead_of_taking_the_last(self) -> None:
+        # Three trials of the same cell. The median of the medians is 2.0; taking
+        # the last row would report 1.0 and taking the best would report 1.0 too,
+        # both of which the publication gate forbids.
+        header = CSV.splitlines()[0]
+        trials = "\n".join(
+            f"AMD Radeon RX 9070 XT,gfx1201,hip,materialized,fp32,1,8,128,64,0,"
+            f"{ms},{ms},{ms},1.0,1.0,524288,0.0001,0.001"
+            for ms in ("3.0", "2.0", "1.0")
+        )
+        rest = "\n".join(CSV.splitlines()[2:])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "results.csv"
+            path.write_text(f"{header}\n{trials}\n{rest}\n", encoding="utf-8")
+            report = summarize(load_rows(path))
+
+        # Materialized is the first timing column, immediately after Causal.
+        self.assertIn("| no | 2.0000 ms |", report)
+        self.assertIn("1-3 trial(s)", report)
+
     def test_rejects_unpaired_results(self) -> None:
         with self.assertRaisesRegex(ValueError, "materialized, fused, and fused-cached"):
             summarize([
