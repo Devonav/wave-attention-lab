@@ -9,7 +9,12 @@ from collections import defaultdict
 from pathlib import Path
 
 
-KEY_FIELDS = ("device", "dtype", "batch", "heads", "sequence", "dimension", "causal")
+# Grouping uses architecture rather than device. The HIP backend reports
+# hipDeviceProp_t::name ("AMD Radeon RX 9070 XT") while PyTorch reports
+# torch.cuda.get_device_name ("AMD Radeon Graphics"), so keying on the marketing
+# name would never join SDPA rows to the custom-kernel rows. Both backends derive
+# architecture from gcnArchName, which agrees exactly.
+KEY_FIELDS = ("architecture", "dtype", "batch", "heads", "sequence", "dimension", "causal")
 
 
 def load_rows(path: Path) -> list[dict[str, str]]:
@@ -64,7 +69,8 @@ def summarize(rows: list[dict[str, str]]) -> str:
             float(fused["max_abs_error"]),
             float(cached["max_abs_error"]),
         )
-        device, dtype, batch, heads, sequence, dimension, causal = key
+        architecture, dtype, batch, heads, sequence, dimension, causal = key
+        device = materialized["device"]
         lines.append(
             f"| {device} | {dtype} | {batch} | {heads} | {sequence} | {dimension} | "
             f"{'yes' if causal == '1' else 'no'} | {materialized_ms:.4f} ms | "

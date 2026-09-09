@@ -5,11 +5,15 @@ from pathlib import Path
 from scripts.summarize import load_rows, summarize
 
 
-CSV = """device,backend,algorithm,dtype,batch,heads,sequence,dimension,causal,average_ms,median_ms,p95_ms,tflops,logical_bandwidth_gbs,workspace_bytes,max_abs_error,max_rel_error
-RX 9070 XT,hip,materialized,fp32,1,8,128,64,0,2.1,2.0,2.3,1.0,1.0,524288,0.0001,0.001
-RX 9070 XT,hip,fused,fp32,1,8,128,64,0,1.6,1.5,1.8,2.0,2.0,0,0.0002,0.002
-RX 9070 XT,hip,fused-cached,fp32,1,8,128,64,0,1.1,1.0,1.2,2.0,2.0,0,0.00015,0.0015
-RX 9070 XT,pytorch,sdpa-auto,fp32,1,8,128,64,0,0.9,0.8,1.0,2.0,2.0,-1,,
+# The PyTorch row deliberately carries a different device string than the HIP
+# rows. On real hardware the HIP backend reports "AMD Radeon RX 9070 XT" and
+# PyTorch reports "AMD Radeon Graphics" for the same GPU, so grouping must key on
+# architecture for the SDPA comparison to join at all.
+CSV = """device,architecture,backend,algorithm,dtype,batch,heads,sequence,dimension,causal,average_ms,median_ms,p95_ms,tflops,logical_bandwidth_gbs,workspace_bytes,max_abs_error,max_rel_error
+AMD Radeon RX 9070 XT,gfx1201,hip,materialized,fp32,1,8,128,64,0,2.1,2.0,2.3,1.0,1.0,524288,0.0001,0.001
+AMD Radeon RX 9070 XT,gfx1201,hip,fused,fp32,1,8,128,64,0,1.6,1.5,1.8,2.0,2.0,0,0.0002,0.002
+AMD Radeon RX 9070 XT,gfx1201,hip,fused-cached,fp32,1,8,128,64,0,1.1,1.0,1.2,2.0,2.0,0,0.00015,0.0015
+AMD Radeon Graphics,gfx1201,pytorch,sdpa-auto,fp32,1,8,128,64,0,0.9,0.8,1.0,2.0,2.0,-1,,
 """
 
 
@@ -26,12 +30,15 @@ class SummarizeTests(unittest.TestCase):
         self.assertIn("1.2000 ms", report)
         self.assertIn("0.8000 ms", report)
         self.assertIn("0.80x", report)
+        # The Device column shows the custom-kernel device, not the PyTorch one.
+        self.assertIn("AMD Radeon RX 9070 XT", report)
 
     def test_rejects_unpaired_results(self) -> None:
         with self.assertRaisesRegex(ValueError, "materialized, fused, and fused-cached"):
             summarize([
                 {
                     "device": "GPU",
+                    "architecture": "gfx1201",
                     "dtype": "fp32",
                     "batch": "1",
                     "heads": "1",
